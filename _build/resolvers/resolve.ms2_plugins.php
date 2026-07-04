@@ -1,10 +1,11 @@
 <?php
 
 /**
- * @var modX $modx
  * @var xPDOTransport $transport
  * @var array $options
  */
+
+$modx = $transport->xpdo;
 
 require_once MODX_CORE_PATH . 'components/ms2categorysort/bootstrap.install.php';
 

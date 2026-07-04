@@ -1,10 +1,11 @@
 <?php
 
 /**
- * @var modX $modx
  * @var xPDOTransport $transport
  * @var array $options
  */
+
+$modx = $transport->xpdo;
 
 if ($options[xPDOTransport::PACKAGE_ACTION] !== xPDOTransport::ACTION_INSTALL
     && $options[xPDOTransport::PACKAGE_ACTION] !== xPDOTransport::ACTION_UPGRADE

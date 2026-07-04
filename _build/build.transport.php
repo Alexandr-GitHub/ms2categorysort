@@ -82,9 +82,6 @@ $builder->setPackageAttributes([
     'license' => ms2categorysort_read_build_file($sources, 'LICENSE', 'LICENSE'),
     'readme' => ms2categorysort_read_build_file($sources, 'README.md', 'README.md'),
     'changelog' => is_readable($changelogFile) ? file_get_contents($changelogFile) : '',
-    'requires' => [
-        'minishop2' => '3.0.0',
-    ],
 ]);
 
 $modx->log(modX::LOG_LEVEL_INFO, 'Staging component files (excluding dev paths)...');

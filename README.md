@@ -148,6 +148,14 @@ php _build/build.transport.php
 
 Готовый файл: `_build/dist/ms2categorysort-1.0.0-pl.transport.zip` — его можно закоммитить в репозиторий или загрузить в Installer на другом сайте.
 
+### Проверка пакета
+
+```bash
+php _build/validate.transport.php
+```
+
+Проверяет manifest, vehicles (plugin + 4 events), resolvers, обязательные файлы; убеждается, что в zip нет `install.php` и `tests/`.
+
 **Сборка на уже развёрнутом сайте MODX** (если нет локальной копии MODX):
 
 ```bash
