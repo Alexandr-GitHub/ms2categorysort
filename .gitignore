@@ -1,0 +1,6 @@
+.DS_Store
+vendor/
+phpunit.phar
+composer.lock
+*.transport.zip
+core/components/ms2categorysort/vendor/
