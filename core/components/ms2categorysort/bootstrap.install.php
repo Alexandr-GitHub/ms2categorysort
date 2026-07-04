@@ -3,7 +3,8 @@
 declare(strict_types=1);
 
 /**
- * Shared install steps for ms2categorysort (CLI + web deploy).
+ * Shared install helpers for ms2categorysort.
+ * Used by transport resolvers; ms2categorysort_run_install() kept for manual/dev recovery.
  *
  * @return array{ok: bool, messages: string[]}
  */
@@ -11,15 +12,9 @@ function ms2categorysort_run_install(modX $modx): array
 {
     $messages = [];
 
-    require_once MODX_CORE_PATH . 'components/ms2categorysort/bootstrap.php';
-
-    /** @var Ms2CategorySort $addon */
-    $addon = ms2categorysort_get_service($modx);
-
-    $service = $addon->getCategorySortService();
-    $service->ensureSchema();
+    ms2categorysort_ensure_schema($modx);
     $messages[] = 'Схема БД: menuindex в ms2_product_categories — OK';
-    $service->migrateExistingMenuIndexes();
+    ms2categorysort_migrate_menuindexes($modx);
     $messages[] = 'Миграция данных menuindex — OK';
 
     ms2categorysort_ensure_namespace($modx, $messages);
@@ -36,8 +31,9 @@ function ms2categorysort_run_install(modX $modx): array
         'xtype' => 'combo-boolean',
         'namespace' => 'minishop2',
         'area' => 'ms2_category',
-        'name' => 'Сортировка по menuindex внутри категории',
-        'description' => 'Отдельный порядок товаров в каждой категории (в т.ч. доп. категории). Выкл. — стандартный MS2.',
+        'name' => 'setting_ms2_category_sort_by_category',
+        'description' => 'setting_ms2_category_sort_by_category_desc',
+        'lexicon' => 'ms2categorysort:setting',
     ]);
     if ($sortSetting->save()) {
         $messages[] = 'System setting ' . $settingKey . ' — OK';
@@ -45,55 +41,93 @@ function ms2categorysort_run_install(modX $modx): array
         $messages[] = 'WARN: не удалось сохранить ' . $settingKey;
     }
 
-    $plugins = $modx->fromJSON($modx->getOption('ms2_plugins', null, '{}')) ?: [];
-    if (!is_array($plugins)) {
-        $plugins = [];
-    }
-    $plugins['categorysort'] = [
-        'controller' => '{core_path}components/ms2categorysort/index.php',
-    ];
-    $pluginsJson = $modx->toJSON($plugins);
-    $setting = $modx->getObject('modSystemSetting', ['key' => 'ms2_plugins']);
-    if ($setting) {
-        $setting->set('value', $pluginsJson);
-        $setting->save();
-        $messages[] = 'ms2_plugins обновлён в system_settings';
-    } else {
-        $messages[] = 'WARN: system_setting ms2_plugins не найден';
-    }
+    ms2categorysort_register_ms2_plugin_entry($modx, false);
+    $messages[] = 'ms2_plugins — OK';
 
     ms2categorysort_register_plugin($modx, $messages);
-
-    $snippet = $modx->getObject('modSnippet', ['name' => 'msProducts']);
-    if ($snippet) {
-        $snippetFile = MODX_CORE_PATH . 'components/ms2categorysort/elements/snippets/snippet.ms_products.php';
-        if (!is_readable($snippetFile)) {
-            $messages[] = 'WARN: файл snippet msProducts не найден: ' . $snippetFile;
-        } else {
-            $snippetCode = file_get_contents($snippetFile);
-            $snippet->set('snippet', $snippetCode);
-            $sourceId = 1;
-            $source = $modx->getObject('modMediaSource', ['id' => 1]);
-            if (!$source) {
-                $source = $modx->getObject('modMediaSource', ['name' => 'Filesystem']);
-            }
-            if ($source) {
-                $sourceId = (int) $source->get('id');
-            }
-            $snippet->set('source', $sourceId);
-            $snippet->set('static_file', 'core/components/ms2categorysort/elements/snippets/snippet.ms_products.php');
-            $snippet->save();
-            $messages[] = 'Snippet msProducts обновлён из addon (source=' . $sourceId . ', '
-                . (strpos($snippetCode, 'ms2categorysort') !== false ? 'OK' : 'WARN no marker') . ')';
-        }
-    } else {
-        $messages[] = 'WARN: snippet msProducts не найден';
-    }
+    ms2categorysort_update_msproducts_snippet($modx, $messages);
 
     $modx->getCacheManager()->refresh();
     $messages[] = 'Кэш MODX очищен';
 
     return ['ok' => true, 'messages' => $messages];
+}
+
+function ms2categorysort_ensure_schema(modX $modx): void
+{
+    require_once MODX_CORE_PATH . 'components/ms2categorysort/bootstrap.php';
+
+    /** @var Ms2CategorySort $addon */
+    $addon = ms2categorysort_get_service($modx);
+    $addon->getCategorySortService()->ensureSchema();
+}
+
+function ms2categorysort_migrate_menuindexes(modX $modx): void
+{
+    require_once MODX_CORE_PATH . 'components/ms2categorysort/bootstrap.php';
+
+    /** @var Ms2CategorySort $addon */
+    $addon = ms2categorysort_get_service($modx);
+    $addon->getCategorySortService()->migrateExistingMenuIndexes();
+}
+
+function ms2categorysort_register_ms2_plugin_entry(modX $modx, bool $remove = false): void
+{
+    $plugins = $modx->fromJSON($modx->getOption('ms2_plugins', null, '{}')) ?: [];
+    if (!is_array($plugins)) {
+        $plugins = [];
+    }
+
+    if ($remove) {
+        unset($plugins['categorysort']);
+    } else {
+        $plugins['categorysort'] = [
+            'controller' => '{core_path}components/ms2categorysort/index.php',
+        ];
+    }
+
+    $pluginsJson = $modx->toJSON($plugins);
+    $setting = $modx->getObject('modSystemSetting', ['key' => 'ms2_plugins']);
+    if ($setting) {
+        $setting->set('value', $pluginsJson);
+        $setting->save();
+        $modx->setOption('ms2_plugins', $pluginsJson);
+    }
+}
+
+/**
+ * @param string[] $messages
+ */
+function ms2categorysort_update_msproducts_snippet(modX $modx, array &$messages = []): void
+{
+    $snippet = $modx->getObject('modSnippet', ['name' => 'msProducts']);
+    if (!$snippet) {
+        $messages[] = 'WARN: snippet msProducts не найден';
+
+        return;
+    }
+
+    $snippetFile = MODX_CORE_PATH . 'components/ms2categorysort/elements/snippets/snippet.ms_products.php';
+    if (!is_readable($snippetFile)) {
+        $messages[] = 'WARN: файл snippet msProducts не найден: ' . $snippetFile;
+
+        return;
+    }
+
+    $snippetCode = file_get_contents($snippetFile);
+    $snippet->set('snippet', $snippetCode);
+    $sourceId = 1;
+    $source = $modx->getObject('modMediaSource', ['id' => 1]);
+    if (!$source) {
+        $source = $modx->getObject('modMediaSource', ['name' => 'Filesystem']);
+    }
+    if ($source) {
+        $sourceId = (int) $source->get('id');
+    }
+    $snippet->set('source', $sourceId);
+    $snippet->set('static_file', 'core/components/ms2categorysort/elements/snippets/snippet.ms_products.php');
+    $snippet->save();
+    $messages[] = 'Snippet msProducts обновлён (source=' . $sourceId . ')';
 }
 
 function ms2categorysort_format_save_errors($object): string

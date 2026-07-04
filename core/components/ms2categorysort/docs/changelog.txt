@@ -1,0 +1,8 @@
+1.0.0-pl
+========
+
+- Per-category menuindex for MiniShop2 (native + additional categories)
+- Admin DnD in category product grid
+- System setting ms2_category_sort_by_category (minishop2 namespace)
+- msProducts snippet patch via install resolver
+- Transport package install via Package Manager

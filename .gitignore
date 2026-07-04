@@ -2,5 +2,8 @@
 vendor/
 phpunit.phar
 composer.lock
-*.transport.zip
 core/components/ms2categorysort/vendor/
+_build/build.config.php
+_build/staging/
+*.transport.zip
+!_build/dist/*.transport.zip
