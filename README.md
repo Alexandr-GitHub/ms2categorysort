@@ -156,23 +156,4 @@ php _build/validate.transport.php
 
 Проверяет manifest, vehicles (plugin + 4 events), resolvers, обязательные файлы; убеждается, что в zip нет `install.php` и `tests/`.
 
-**Сборка на уже развёрнутом сайте MODX** (если нет локальной копии MODX):
-
-```bash
-# залить _build/ в {site_root}/_build/ms2categorysort/
-php _build/ms2categorysort/run-on-site.php
-# или HTTP (удалите скрипт с сервера после сборки):
-# https://example.com/_build/ms2categorysort/run-on-site.php?key=ms2categorysort_build_2026
-```
-
 Документация MODX: [Building a Transport Package](https://docs.modx.com/current/en/extending-modx/transport-packages/build-script).
-
-### Ручная установка (только dev)
-
-Если transport недоступен, можно скопировать `core/` и `assets/` вручную и выполнить:
-
-```bash
-php -r "require 'config.core.php'; require MODX_CORE_PATH.'model/modx/modx.class.php'; \$m=new modX(); \$m->initialize('mgr'); require MODX_CORE_PATH.'components/ms2categorysort/bootstrap.install.php'; print_r(ms2categorysort_run_install(\$m));"
-```
-
-из корня MODX. Для production используйте transport-пакет.
